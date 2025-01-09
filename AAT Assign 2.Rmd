@@ -1,0 +1,517 @@
+---
+title: "Gaussian Classification and Spatial Data Analysis"
+author: "Cynthia Kiiti"
+date: "2024-11-06"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+  keep_tex: true
+always_allow_html: true
+---
+
+```{r, warning=FALSE, message=FALSE}
+if(!require(tinytex))
+install.packages("tinytex")
+tinytex::install_tinytex(force = TRUE) # install TinyTeX to generate PDF reports
+```
+
+
+## Topic Modelling Application: Analysis of Legal Documents
+
+Legal professionals frequently deal with vast volumes of material in the form of legal opinions, contracts, pleadings, and case law. It takes a lot of time to manually classify and summarize these papers. 
+
+A useful tool is topic modeling, which automatically classifies and groups legal papers according to common themes like "intellectual property," "contract disputes," "personal injury," or "employment law." This makes it possible for attorneys and legal academics to find pertinent information in a large amount of text very rapidly.
+
+### The Function of Topic Modeling in a Legal Setting
+
+Non-Negative Matrix Factorization (NMF) and LDA are two topic modeling techniques that law firms can use to effectively manage and derive insights from their documents
+
+1. To find word clusters that regularly occur together, the model examines each document's content. For instance, "contract disputes" can include terms like "breach," "contract," and "damages," whereas "intellectual property" might include terms like "trademark," "infringement," and "intellectual property."
+
+2. To assign each document a likelihood score for one or more themes. This helps attorneys arrange their databases by topic and facilitates the search for pertinent documents or cases.
+
+3. To automatically generate summaries by recognizing each document's primary subjects, enabling legal practitioners to rapidly grasp the essential points without having to read the full text.
+
+### Advantages for the Legal Sector
+
+1. By cutting down on the amount of time required for document review and retrieval, topic modeling frees up attorneys to work on more strategic projects.
+
+2. Since legal language can change from case to case, legal professionals can search for documents by topic, which is frequently more efficient than keyword searches.
+
+3. By examining vast amounts of case law, law firms are able to spot trends, like recurring problems in contract disputes, and use these revelations to strengthen their arguments.
+
+4. It is a useful technique for boosting document management and improving the speed and accuracy of information retrieval in legal research, where even minor insights can have a significant impact.
+
+# GAUSSIAN CLASSIFICATION
+Loading the data.
+
+```{r, warning=FALSE, message=FALSE}
+# Load the package
+install.packages("twitteR")
+library(twitteR)
+
+# Load the Twitter data
+setwd("C:/Users/cynth/OneDrive/Desktop/MSc. DATA SCIENCE/LMDS 2nd Sem/Advanced Analytics Techniques")
+
+load("rdmTweets-201306.RData")
+ls()
+
+```
+
+Text Cleaning
+
+```{r, warning=FALSE, message=FALSE}
+# Load necessary libraries
+install.packages("tm")
+install.packages("SnowballC")
+library(tm)
+library(SnowballC)
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(twitteR)
+library(dplyr)
+library(stringr)
+
+
+# Convert tweets to a data frame
+tweets_df <- twListToDF(tweets)
+
+# Confirm the structure of the resulting data frame
+str(tweets_df)
+
+# Now, `tweets_df$text` contains the tweet text
+tweets_df <- tweets_df %>%
+  mutate(clean_text = str_to_lower(text),                          # Convert to lowercase
+         clean_text = str_replace_all(clean_text, "https?://\\S+", ""), # Remove URLs
+         clean_text = str_replace_all(clean_text, "[^a-z ]", ""))      # Keep English letters and spaces
+
+```
+
+Obtain the Frequency of "mining" and "data".
+
+```{r, warning=FALSE, message=FALSE}
+# Step 2: Count Frequency of "data" and "mining"
+word_count <- str_count(tweets_df$clean_text, "\\bdata\\b") + str_count(tweets_df$clean_text, "\\bmining\\b")
+cat("Frequency of 'data':", sum(str_count(tweets_df$clean_text, "\\bdata\\b")), "\n")
+cat("Frequency of 'mining':", sum(str_count(tweets_df$clean_text, "\\bmining\\b")), "\n")
+```
+
+Plot the Word Cloud
+
+```{r, warning=FALSE, message=FALSE}
+# Convert clean_text to a Corpus
+corpus <- Corpus(VectorSource(tweets_df$clean_text))
+
+# Further clean the text by removing stopwords, whitespace, and stemming words
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+corpus <- tm_map(corpus, stripWhitespace)
+
+# Create a Document-Term Matrix
+dtm <- DocumentTermMatrix(corpus)
+
+# Sum up the frequencies of each word
+term_freq <- colSums(as.matrix(dtm))
+term_freq <- sort(term_freq, decreasing = TRUE)
+
+install.packages("wordcloud")
+library(wordcloud)
+# Plot the word cloud
+wordcloud(names(term_freq), term_freq, max.words = 100, random.order = FALSE, colors = brewer.pal(8, "Dark2"))
+
+```
+
+
+Topic Modeling
+
+```{r, warning=FALSE, message=FALSE}
+# Load topicmodels package
+if(!require(topicmodels)) install.packages("topicmodels")
+library(topicmodels)
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+# Set number of topics
+k <- 8
+
+# Fit the LDA model
+lda_model <- LDA(dtm, k = k, method = "Gibbs", control = list(seed = 1234, burnin = 1000, iter = 1000, thin = 100))
+
+# Find top 6 terms in each topic
+top_terms <- terms(lda_model, 6)
+top_terms
+```
+
+
+## Stream Data Utilization: Traffic control and monitoring in real time.
+
+To monitor traffic conditions, spot congestion, and handle issues in real time, cities and transportation authorities employ stream data from sensors, GPS devices, and mobile applications. They can respond swiftly to accidents or other disturbances, modify traffic light timings, and give drivers real-time updates thanks to this data.
+
+### Algorithms' Challenges in Analyzing Stream Data 
+
+1. Data Heterogeneity: Road sensors, GPS units in cars, and mobile apps are only a few of the sources of traffic data. It might be challenging to smoothly integrate and evaluate the data in real time since different data sources may differ in terms of format, quality, and update frequency.
+
+2. Latency Sensitivity: Near-instantaneous analysis is necessary for traffic management. For instance, the system must act fast to reroute traffic or modify traffic lights if congestion is observed. Any processing lag could make these efforts less effective, which would exacerbate congestion.
+
+3. Dynamic and Unpredictable Conditions: A variety of circumstances, such as weather, accidents, and special events, can affect traffic patterns, causing sudden and erratic changes. Without being overpowered by unforeseen swings, algorithms must be able to recognize these changes and react accordingly.
+
+4. Limitations on Scalability and Storage: It is difficult to continually store, process, and analyze the vast amounts of traffic data that big cities create every second. Particularly during peak hours, the system must be scalable and capable of managing spikes in data traffic.
+
+### Solutions for These Issues
+
+1. Frameworks for Stream Processing:
+
+For real-time data management across numerous sources, use frameworks such as Apache Kafka and Apache Flink. These frameworks aid in the unification of disparate data sources by managing data input, integration, and processing in a distributed manner.
+By providing only aggregated or pertinent data to the main system, edge computing can process data closer to the source (such as traffic sensors), cutting latency and the data load on central servers.
+
+2. Algorithms that are both predictive and adaptive:
+
+Use predictive techniques, such as machine learning models and time series forecasting, to foresee congestion based on past trends and present circumstances. For example, using historical data, a machine learning model can forecast traffic flow and notify the system before congestion gets worse.
+
+Unexpected changes can be handled more skillfully by adaptive models that adapt to changing conditions. For instance, using real-time traffic flow, reinforcement learning can dynamically adjust traffic light timings.
+
+3. Sliding windows and methods of approximation:
+
+In order to reduce memory and computational expenses, sliding window techniques assist the system in processing only the most current data within a predetermined time frame, discarding older data.
+Faster processing and more effective memory utilization are made possible by approximation techniques such as count-min drawings, which can record frequency distributions of traffic occurrences without keeping the complete data.
+
+4. Visualization and Alerting of Real-Time Data:
+
+Provide traffic managers with real-time dashboards and visualizations so they can quickly assess circumstances and take appropriate action.
+When anomalous patterns are found, use anomaly detection algorithms to automatically send out alerts. 
+
+# SPATIAL DATA ANALYSIS
+
+```{r, warning=FALSE, message=FALSE}
+install.packages("stream")
+library("stream")
+# Create a data stream with 4 clusters, 2 dimensions, and 5% noise
+stream <- DSD_Gaussians(k = 4, d = 2, noise = 0.05)
+
+```
+
+Reservoir sampling with K-means Clustering
+
+```{r, warning=FALSE, message=FALSE}
+# Set up Reservoir Sampling with K-means clustering
+Reservoir_Kmeans <- DSC_TwoStage(
+  micro = DSC_Sample(k = 200),   # Sample 200 points using reservoir sampling
+  macro = DSC_Kmeans(k = 5)       # Cluster into 5 groups using K-means
+)
+
+# Update the model with 500 points from the stream
+update(Reservoir_Kmeans, stream, n = 500)
+
+# Evaluate the performance using 100 points from the stream
+reservoir_eval <- evaluate_static(
+  Reservoir_Kmeans, stream,
+  measure = c("precision", "recall", "F1"),
+  n = 100
+)
+print(reservoir_eval)
+
+```
+
+Windowing sampling with K-means Clustering
+
+
+```{r, warning=FALSE, message=FALSE}
+# Set up Windowing with K-means clustering
+Window_Kmeans <- DSC_TwoStage(
+  micro = DSC_Window(horizon = 200),  # Use a window of 200 points
+  macro = DSC_Kmeans(k = 5)           # Cluster into 5 groups using K-means
+)
+
+# Update the model with 500 points from the stream
+update(Window_Kmeans, stream, n = 500)
+
+# Evaluate the performance using 100 points from the stream
+window_eval <- evaluate_static(
+  Window_Kmeans, stream,
+  measure = c("precision", "recall", "F1"),
+  n = 100
+)
+print(window_eval)
+
+```
+
+D-Stream sampling with K-means Clustering
+
+
+```{r, warning=FALSE, message=FALSE}
+# Set up D-Stream clustering with grid size of 0.1
+DStream <- DSC_DStream(gridsize = 0.1, Cm = 1.2)
+
+# Update the model with 500 points from the stream
+update(DStream, stream, n = 500)
+
+# Evaluate the performance using 100 points from the stream
+dstream_eval <- evaluate_static(
+  DStream, stream,
+  measure = c("precision", "recall", "F1"),
+  n = 100
+)
+print(dstream_eval)
+
+```
+
+Windowing with K-means has the highest F1 score (0.9741), making it the most effective clustering method for this stream in terms of both capturing relevant points and minimizing errors.
+Reservoir Sampling with K-means also performs well, though it has slightly lower recall and F1 scores than the windowing method.
+D-Stream Clustering has a much lower F1 score due to low recall, making it the least effective in this scenario.
+
+# *QUESTION 5*
+
+## Geographical Information Systems (GIS): Urban Planning and Development**.
+
+### How Urban Planning Benefits from GIS
+
+1. Land usage and Zoning: Urban planners can examine existing land usage and suggest zoning adjustments with the help of GIS. Planners can decide how best to distribute property for growth and sustainability by superimposing information about residential, commercial, and industrial regions on top of utilities, public services, and roadways.
+
+2. Infrastructure and Transportation Planning: GIS aids in the planning and design of transportation networks, including public transportation, highways, and walkways. Urban planners can determine locations that require infrastructure improvements and guarantee that new developments have sufficient access to transportation by examining traffic patterns, population density, and commute routes.
+
+3. Environmental Impact Assessment: Planners can evaluate the effects of new developments on the environment by using GIS. GIS, for instance, can be used to investigate how construction affects surrounding green areas, water bodies, and wildlife habitats, assisting cities in developing in ways that cause the least amount of harm to the environment.
+
+4. Public Services and Facilities Planning: By examining population demographics and accessibility, GIS helps plan the location of vital facilities such as schools, hospitals, and fire stations. This promotes fairness in the city by guaranteeing that services are dispersed equally and available to all citizens.
+
+With the use of GIS, urban planners may display data, examine spatial relationships, and make data-driven decisions that will result in more inclusive, sustainable, and effective urban development.
+
+# *QUESTION 6*
+
+```{r, warning=FALSE, message=FALSE}
+install.packages("rnaturalearth")
+install.packages("dplyr")
+install.packages("maps")
+install.packages("leaflet")
+
+library(rnaturalearth)
+library(dplyr)
+library(maps)
+library(leaflet)
+```
+
+## Map of Australia where each city is represented as a dot.
+
+```{r, warning=FALSE, message=FALSE}
+# Load Australia country and state data
+install.packages("devtools")
+devtools::install_github("ropensci/rnaturalearthhires")
+australia <- ne_countries(scale = "medium", country = "Australia", returnclass = "sf")
+states <- ne_states(country = "Australia", returnclass = "sf")
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+# Example city data 
+cities <- data.frame(
+  name = c("Sydney", "Melbourne", "Brisbane"),
+  lat = c(-33.8688, -37.8136, -27.4698),
+  lon = c(151.2093, 144.9631, 153.0251),
+  population = c(5312000, 5078000, 2514000)
+)
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(leaflet)
+library(htmlwidgets)
+
+install.packages("pagedown")
+library(pagedown)
+
+# Save the map as an HTML file first
+m <- leaflet(data = australia) %>%
+    addTiles() %>%
+    addPolygons(fillColor = "white", color = "black", weight = 1) %>%
+    addCircleMarkers(data = cities, lat = ~lat, lng = ~lon,
+                     color = ~ifelse(population > 1000000, "red", "blue"),
+                     radius = 5, label = ~name)
+
+saveWidget(m, "map.html", selfcontained = TRUE)
+
+# Use pagedown to convert the HTML to PDF
+pagedown::chrome_print("map.html", output = "map.pdf", timeout = 120)  # Set timeout to 120 seconds
+
+
+```
+
+## A Map of “South Australia”
+
+```{r, warning=FALSE, message=FALSE}
+library(sf)
+```
+
+```{r, warning=FALSE, message=FALSE}
+# Load shapefile 
+
+library(terra)
+
+zip_file_path <- "C:/Users/cynth/OneDrive/Desktop/MSc. DATA SCIENCE/LMDS 2nd Sem/Advanced Analytics Techniques/shapefile.zip"
+
+south_aus <- vect(paste0("/vsizip/", zip_file_path, "/SA2_2021_AUST_GDA2020.shp"))
+
+print(south_aus)
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+# Create a color palette for SA4 areas
+palette <- colorFactor(palette = "Blues", domain = south_aus$SA4)
+
+# Use leaflet to create an interactive map
+leaflet(south_aus) %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    fillColor = ~palette(SA4_NAME21),
+    color = "black", # border color
+    weight = 1,
+    opacity = 0.5,
+    fillOpacity = 0.7,
+    popup = ~SA4_NAME21
+  ) %>%
+  addLegend(pal = palette, values = south_aus$SA4_NAME21, title = "SA4 Areas")
+```
+
+## Greater Adelaide.
+
+```{r, warning=FALSE, message=FALSE}
+# Filter shapefile to Greater Adelaide SA3 regions using subset
+greater_adelaide <- subset(south_aus, south_aus$SA3_NAME21 == "Greater Adelaide")
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+# Define regions that include in "Greater Adelaide"
+adelaide_regions <- c("Adelaide City", "Adelaide Hills", "Burnside", 
+                      "Campbelltown (SA)", "Gawler - Two Wells", "Playford", 
+                      "Port Adelaide - East", "Salisbury", "Tea Tree Gully")
+
+# Subset to include only these regions
+greater_adelaide <- subset(south_aus, south_aus$SA3_NAME21 %in% adelaide_regions)
+
+# Aggregate polygons by combining the selected areas into one
+greater_adelaide <- aggregate(greater_adelaide, by = "SA3_NAME21", dissolve = TRUE)
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+# Plot to check results
+plot(greater_adelaide, main = "Greater Adelaide - SA3 Level")
+```
+
+## Crime Rates in Salisbury, Adelaide.
+
+```{r, warning=FALSE, message=FALSE}
+# Load crime data
+crime_data <- read.csv("crimeCounts.csv", header = TRUE, colClasses = c("NULL", "character", "integer"))
+
+
+# Filter South Australia data to only the Salisbury region
+salisbury <- subset(south_aus, south_aus$SA3_NAME21 == "Salisbury")
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+# Ensure the column names match for the join
+names(crime_data) <- c("Suburb", "Offence_count") 
+
+# Remove the NA column if it's not needed
+crime_data <- crime_data[, !is.na(names(crime_data))]
+
+
+# Join the crime data with the Salisbury spatial data
+
+# Convert suburb names to lowercase and remove any extra whitespace
+crime_data$Suburb <- tolower(trimws(crime_data$Suburb))
+salisbury$SA2_NAME21 <- tolower(trimws(salisbury$SA2_NAME21))
+
+# Find unmatched names in `salisbury` not in `crime_data`
+unmatched_names <- setdiff(salisbury$SA2_NAME21, crime_data$Suburb)
+print(unmatched_names)
+
+# Adjust names in `salisbury` directly
+salisbury$SA2_NAME21[salisbury$SA2_NAME21 == "dry creek - north"] <- "dry creek"
+salisbury$SA2_NAME21[salisbury$SA2_NAME21 == "mawson lakes - globe derby park"] <- "mawson lakes"
+salisbury$SA2_NAME21[salisbury$SA2_NAME21 == "pooraka - cavan"] <- "pooraka"
+
+# Check for any remaining unmatched names
+unmatched_names <- setdiff(salisbury$SA2_NAME21, crime_data$Suburb)
+print(unmatched_names)
+
+# Join the crime data with the Salisbury spatial data
+salisbury <- merge(salisbury, crime_data, by.x = "SA2_NAME21", by.y = "Suburb", all.x = TRUE)
+
+# Convert `Offence_count` to numeric for visualization
+salisbury$crimeCounts <- as.numeric(salisbury$Offence_count)
+salisbury$crimeCounts[is.na(salisbury$crimeCounts)] <- 0
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+library(terra)
+
+# Define the extent and resolution for the raster based on the salisbury SpatVector
+r_template <- rast(ext(salisbury), resolution = 0.01)  
+
+# Set the coordinate reference system to match salisbury
+crs(r_template) <- crs(salisbury)
+
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+# Convert crimeCounts to numeric
+salisbury$crimeCounts <- as.numeric(salisbury$crimeCounts)
+
+# Rasterize the crimeCounts attribute using the template
+crime_raster <- rasterize(salisbury, r_template, field = "crimeCounts")
+
+# Plot the crimeCounts raster
+terra::plot(crime_raster, col = colorRampPalette(c("yellow", "red"))(100), main = "Crime Counts in Salisbury")
+
+# Overlay the boundary of the Salisbury region on the raster
+plot(salisbury, add = TRUE)
+
+```
+
+The graph above shows the crime counts in Salisbury. It is clear to see that the middle of the area have the highest crime counts while the eastern and western areas have the least crime rates. The northern and southern areas seem to have moderate crime counts.
+
+## Top 5 restaurants in Adelaide
+
+```{r, warning=FALSE, message=FALSE}
+# Define the top 5 restaurants with their coordinates
+restaurants <- data.frame(
+  name = c("Restaurant 1", "Restaurant 2", "Restaurant 3", "Restaurant 4", "Restaurant 5"),
+  lat = c(-34.9285, -34.9275, -34.9265, -34.9290, -34.9280),  
+  lon = c(138.6007, 138.6017, 138.6027, 138.5997, 138.6000)   
+)
+
+# Load required libraries for interactive map
+library(leaflet)
+library(htmlwidgets)
+
+# Create the leaflet map
+map <- leaflet(data = restaurants) %>%
+  addTiles() %>%  # Add default OpenStreetMap tiles
+  addMarkers(~lon, ~lat, popup = ~name, label = ~name) %>%
+  setView(lng = 138.6007, lat = -34.9285, zoom = 14)  # Center the map on Adelaide
+
+# Save the map as an HTML file
+saveWidget(map, "Adelaide_Top_5_Restaurants.html", selfcontained = TRUE)
+
+# Capture a screenshot if rendering to non-HTML formats
+install.packages("webshot2")
+library(webshot2)
+# Try with a longer timeout duration
+webshot2::webshot("Adelaide_Top_5_Restaurants.html", file = "Adelaide_Top_5_Restaurants.png", delay = 5)
+
+
+# Include the screenshot in the document
+knitr::include_graphics("Adelaide_Top_5_Restaurants.png")
+
+memory.limit(size = 4096)  # Set to 4 GB or higher if needed and available
+
+```
+
+According to the graph above, the top 5 restaurants in Adelaide are located in the main Central Business District.
+
